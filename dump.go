@@ -1,15 +1,14 @@
-package dump
+package logcat
 
 import (
 	"bufio"
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 	"strings"
 )
 
-func Dump(r io.Reader) {
+func (app *App) dump(r io.Reader) {
 	reader := bufio.NewReader(r)
 	for {
 		line, err := reader.ReadString('\n')
@@ -38,12 +37,17 @@ func Dump(r io.Reader) {
 				continue
 			}
 
-			n, err := strconv.Atoi(pair[0])
-			if err != nil {
+			if !app.opts.Human {
+				fmt.Printf("  %s=%s\n", pair[0], pair[1])
 				continue
 			}
 
-			fmt.Printf("  %s=%s\n", Tag(n), pair[1])
+			meaning, ok := app.tags[pair[0]]
+			if ok {
+				fmt.Printf("  %s(%s)=%s\n", pair[0], meaning, pair[1])
+			} else {
+				fmt.Printf("  %s=%s\n", pair[0], pair[1])
+			}
 		}
 	}
 }
