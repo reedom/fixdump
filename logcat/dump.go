@@ -12,14 +12,18 @@ import (
 	"github.com/reedom/fixdump/logcat/dict"
 )
 
-const tagBeginString int = 8
+const (
+	tagBeginString  int = 8
+	tagMsgSeqNum        = 34
+	tagSendingTime      = 52
+	tagSenderCompID     = 49
+	tagTargetCompID     = 56
+)
 
-var reTimestamp *regexp.Regexp
-var reScreenLog *regexp.Regexp
+var reFields *regexp.Regexp
 
 func init() {
-	reTimestamp = regexp.MustCompile(`^([\d/-]{8,12}[ T-][\d:]{6,8}(\.\d+)?(Z|[+-]\S+)?)\s+`)
-	reScreenLog = regexp.MustCompile(`(\d+\S+\x01.*\x01)`)
+	reFields = regexp.MustCompile(`(\d+\S+\x01.*\x01)`)
 }
 
 type field struct {
@@ -28,9 +32,8 @@ type field struct {
 }
 
 type lineParser struct {
-	timestamp string
-	fields    []*field
-	nFields   int
+	fields  []*field
+	nFields int
 }
 
 func newLineParser() *lineParser {
@@ -42,17 +45,12 @@ func newLineParser() *lineParser {
 func (p *lineParser) parse(line string) bool {
 	p.nFields = 0
 
-	if m := reTimestamp.FindStringSubmatch(line); m != nil {
-		// timestamp
-		p.timestamp = m[1]
-		line = line[len(m[0]):]
-	} else if m := reScreenLog.FindStringSubmatch(line); m != nil {
-		// screen log
-		p.timestamp = ""
-		line = m[1]
-	} else {
+	m := reFields.FindStringSubmatch(line)
+	if m == nil {
 		return false
 	}
+
+	line = m[1]
 
 	// fields
 	fields := p.fields
@@ -110,25 +108,43 @@ func (p *lineParser) findField(tag int) *field {
 	return nil
 }
 
+func (p *lineParser) getFieldValue(tag int, defaultValue string) string {
+	f := p.findField(tag)
+	if f != nil {
+		return f.value
+	}
+	return defaultValue
+}
+
 type logPrinter interface {
 	print(parser *lineParser)
 }
 
+type commonPrinter struct {
+}
+
+func (p commonPrinter) printHeader(parser *lineParser) {
+	fmt.Printf("[%s (%s) %s -> %s]\n",
+		parser.getFieldValue(tagSendingTime, "00010101-00:00:00.000"),
+		parser.getFieldValue(tagMsgSeqNum, "--"),
+		parser.getFieldValue(tagSenderCompID, "???"),
+		parser.getFieldValue(tagTargetCompID, "???"))
+}
+
 type simpleLogPrinter struct {
+	commonPrinter
 	indent string
 }
 
 func (p simpleLogPrinter) print(parser *lineParser) {
-	if parser.timestamp != "" {
-		fmt.Printf("[%s]\n", parser.timestamp)
-	}
-
+	p.printHeader(parser)
 	for _, f := range parser.getFields() {
 		fmt.Printf("%s%d=%s\n", p.indent, f.tag, f.value)
 	}
 }
 
 type humanLogPrinter struct {
+	commonPrinter
 	indent  string
 	fixdict dict.FixDict
 }
@@ -144,10 +160,7 @@ func (p *humanLogPrinter) print(parser *lineParser) {
 	}
 
 	// print
-	if parser.timestamp != "" {
-		fmt.Printf("[%s]\n", parser.timestamp)
-	}
-
+	p.printHeader(parser)
 	for _, f := range parser.getFields() {
 		fmt.Printf("%s%s=%s\n", p.indent, p.formatTag(f), p.formatTagValue(f))
 	}
