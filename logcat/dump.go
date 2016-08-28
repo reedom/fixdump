@@ -200,6 +200,8 @@ func (d dumper) dump(reader io.Reader) {
 
 		if d.parser.parse(line) {
 			d.printer.print(d.parser)
+		} else {
+			fmt.Printf(line)
 		}
 	}
 }
