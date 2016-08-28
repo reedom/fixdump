@@ -3,7 +3,7 @@ package dictgen_test
 import (
 	"testing"
 
-	"github.com/reedom/quickfixgo-logcat/logcat/dictgen"
+	"github.com/reedom/fixdump/logcat/dictgen"
 	"github.com/stretchr/testify/require"
 	"path/filepath"
 	"text/template"

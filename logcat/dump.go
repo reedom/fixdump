@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/reedom/quickfixgo-logcat/logcat/dict"
+	"github.com/reedom/fixdump/logcat/dict"
 )
 
 const tagBeginString int = 8

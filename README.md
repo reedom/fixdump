@@ -1,20 +1,18 @@
-quickfixgo-logcat
-=================
+fixdump
+=======
 
-Dump [quickfixgo][]'s log file in _easy-read-formats_.
-
-[quickfixgo]: https://github.com/quickfixgo/quickfix
+Dump FIX protocol log in _easy-read-formats_.
 
 Install
 -------
 
-    go get github.com/reedom/quickfixgo-logcat
+    go get github.com/reedom/fixdump
 
 Usage
 -----
 
     Usage:
-      quickfixgo-logcat [OPTIONS] [Paths...]
+      fixdump [OPTIONS] [Paths...]
 
     Application Options:
       -v, --version
@@ -32,7 +30,7 @@ Example Usage
 
 ```
 # read from file with no options
-quickfixgo-logcat sample.log
+fixdump sample.log
 
 [2016/08/27 08:41:27.251195]
 8=FIX.4.2
@@ -56,7 +54,7 @@ quickfixgo-logcat sample.log
 
 ```
 # read from STDIN with indent and human options
-tail -f sample.log | quickfixgo-logcat -H -i
+tail -f sample.log | fixdump -H -i
 
 [2016/08/27 08:41:27.251195]
   8(BeginString)=FIX.4.2
@@ -77,20 +75,6 @@ tail -f sample.log | quickfixgo-logcat -H -i
   8(BeginString)=FIX.4.2
 …
 ```
-
-Note
-----
-
-`quickfixgo-logcat` may work with log files other than of [quickfixgo][], while the log line format matches with the following format.
-
-    ```
-    # sample
-    2016/08/27 08:41:27.251195 8=FIX.4.2^A9=104^A…
-    20160827 084127 8=FIX.4.2^A9=104^A…
-    2016-08-27T08:41:27Z 8=FIX.4.2^A9=104^A…
-      8=FIX.4.2^A9=104^A…
-      (8=FIX.4.2^A9=104^A…)
-    ```
 
 licence
 -------
