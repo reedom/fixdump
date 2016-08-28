@@ -3,7 +3,7 @@ package dict_test
 import (
 	"testing"
 
-	"github.com/reedom/quickfixgo-logcat/dict"
+	"github.com/reedom/quickfixgo-logcat/logcat/dict"
 	"github.com/stretchr/testify/assert"
 )
 

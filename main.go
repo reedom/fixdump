@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/reedom/quickfixgo-logcat"
+	"github.com/reedom/quickfixgo-logcat/logcat"
 	"os"
 )
 
