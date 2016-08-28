@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -12,6 +13,12 @@ import (
 )
 
 const tagBeginString int = 8
+
+var reTimestamp *regexp.Regexp
+
+func init() {
+	reTimestamp = regexp.MustCompile(`^([\d/-]{8,12}[ T-][\d:]{6,8}(\.\d+)?(Z|[+-]\S+)?)\s+`)
+}
 
 type field struct {
 	tag   int
@@ -34,21 +41,19 @@ func (p *lineParser) parse(line string) bool {
 	p.nFields = 0
 
 	// timestamp
-	pos := strings.Index(line, " ")
-	if 0 < pos {
-		pos = strings.Index(line[pos+1:], " ") + pos + 1
-	}
-	if 0 == pos {
+	m := reTimestamp.FindStringSubmatch(line)
+	if m == nil {
 		return false
 	}
-	p.timestamp = line[0:pos]
-	line = line[pos+1:]
+
+	p.timestamp = m[1]
+	line = line[len(m[0]):]
 
 	// fields
 	fields := p.fields
 	n := 0
 	for {
-		pos = strings.Index(line, "\x01")
+		pos := strings.Index(line, "\x01")
 		if pos < 2 {
 			break
 		}
