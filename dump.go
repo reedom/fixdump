@@ -5,13 +5,187 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
+
+	"github.com/reedom/quickfixgo-logcat/dict"
 )
 
-func (app *App) dump(r io.Reader) {
-	reader := bufio.NewReader(r)
+const tagBeginString int = 8
+
+type field struct {
+	tag   int
+	value string
+}
+
+type lineParser struct {
+	timestamp string
+	fields    []*field
+	nFields   int
+}
+
+func newLineParser() *lineParser {
+	return &lineParser{
+		fields: make([]*field, 0),
+	}
+}
+
+func (p *lineParser) parse(line string) bool {
+	p.nFields = 0
+
+	// timestamp
+	pos := strings.Index(line, " ")
+	if 0 < pos {
+		pos = strings.Index(line[pos+1:], " ") + pos + 1
+	}
+	if 0 == pos {
+		return false
+	}
+	p.timestamp = line[0:pos]
+	line = line[pos+1:]
+
+	// fields
+	fields := p.fields
+	n := 0
 	for {
-		line, err := reader.ReadString('\n')
+		pos = strings.Index(line, "\x01")
+		if pos < 2 {
+			break
+		}
+
+		field := p.parseField(line[0:pos])
+		line = line[pos+1:]
+		if field == nil {
+			continue
+		}
+
+		if len(fields) <= n {
+			fields = append(fields, field)
+		} else {
+			fields[n] = field
+		}
+		n++
+	}
+
+	p.fields = fields
+	p.nFields = n
+	return 0 < n
+}
+
+func (p *lineParser) parseField(s string) *field {
+	pos := strings.Index(s, "=")
+	if pos < 0 {
+		return nil
+	}
+
+	tag, err := strconv.Atoi(s[0:pos])
+	if err != nil {
+		return nil
+	}
+
+	value := s[pos+1:]
+	return &field{tag, value}
+}
+
+func (p *lineParser) getFields() []*field {
+	return p.fields[0:p.nFields]
+}
+
+func (p *lineParser) findField(tag int) *field {
+	for _, f := range p.getFields() {
+		if f.tag == tag {
+			return f
+		}
+	}
+	return nil
+}
+
+type logPrinter interface {
+	print(parser *lineParser)
+}
+
+type simpleLogPrinter struct {
+	indent string
+}
+
+func (p simpleLogPrinter) print(parser *lineParser) {
+	fmt.Printf("[%s]\n", parser.timestamp)
+
+	for _, f := range parser.getFields() {
+		fmt.Printf("%s%d=%s\n", p.indent, f.tag, f.value)
+	}
+}
+
+type humanLogPrinter struct {
+	indent  string
+	fixdict dict.FixDict
+}
+
+func (p *humanLogPrinter) print(parser *lineParser) {
+	// prepare FixDict
+	f := parser.findField(tagBeginString)
+	if f == nil {
+		return
+	}
+	if p.fixdict == nil || p.fixdict.Version() != f.value {
+		p.fixdict = dict.Get(f.value)
+	}
+
+	// print
+	fmt.Printf("[%s]\n", parser.timestamp)
+
+	for _, f := range parser.getFields() {
+		fmt.Printf("%s%s=%s\n", p.indent, p.formatTag(f), p.formatTagValue(f))
+	}
+}
+
+func (p *humanLogPrinter) formatTag(f *field) string {
+	if name, ok := p.fixdict.TagName(f.tag); ok {
+		return fmt.Sprintf("%d(%s)", f.tag, name)
+	}
+	return fmt.Sprintf("%d", f.tag)
+}
+
+func (p *humanLogPrinter) formatTagValue(f *field) string {
+	if name, ok := p.fixdict.ValueName(f.tag, f.value); ok {
+		return fmt.Sprintf("%s(%s)", f.value, name)
+	}
+	return f.value
+}
+
+type dumper struct {
+	parser  *lineParser
+	printer logPrinter
+}
+
+func (app *App) newDumper() dumper {
+	d := dumper{
+		parser: newLineParser(),
+	}
+
+	var indent string
+	if app.opts.Indent {
+		indent = "  "
+	}
+
+	if app.opts.Human {
+		d.printer = &humanLogPrinter{
+			indent: indent,
+		}
+	} else {
+		d.printer = simpleLogPrinter{
+			indent: indent,
+		}
+	}
+
+	return d
+}
+
+func (d dumper) dump(reader io.Reader) {
+	r := bufio.NewReader(reader)
+
+	for {
+		line, err := r.ReadString('\n')
 		if err != nil {
 			if err != io.EOF {
 				fmt.Fprintf(os.Stderr, "Read error: %s\n", err.Error())
@@ -19,35 +193,8 @@ func (app *App) dump(r io.Reader) {
 			return
 		}
 
-		// chomp
-		line = line[0 : len(line)-2]
-
-		// timestamp
-		if pos := strings.Index(line, " "); pos == 0 {
-			continue
-		} else {
-			fmt.Printf("%s\n", line[0:pos])
-			line = line[pos+1:]
-		}
-
-		fields := strings.Split(line, "\x01")
-		for _, field := range fields {
-			pair := strings.Split(field, "=")
-			if len(pair) != 2 {
-				continue
-			}
-
-			if !app.opts.Human {
-				fmt.Printf("  %s=%s\n", pair[0], pair[1])
-				continue
-			}
-
-			meaning, ok := app.tags[pair[0]]
-			if ok {
-				fmt.Printf("  %s(%s)=%s\n", pair[0], meaning, pair[1])
-			} else {
-				fmt.Printf("  %s=%s\n", pair[0], pair[1])
-			}
+		if d.parser.parse(line) {
+			d.printer.print(d.parser)
 		}
 	}
 }
