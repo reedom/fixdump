@@ -88,19 +88,9 @@ Note
     2016/08/27 08:41:27.251195 8=FIX.4.2^A9=104^A…
     20160827 084127 8=FIX.4.2^A9=104^A…
     2016-08-27T08:41:27Z 8=FIX.4.2^A9=104^A…
+      8=FIX.4.2^A9=104^A…
+      (8=FIX.4.2^A9=104^A…)
     ```
-
-##### Acceptable line sytax
-
-    line = timestamp whitespaces fields
-
-    timestamp = looks_like_timestamp
-    whitespaces = SPC | TAB { whitespaces }
-    fields = tag "=" value delim { fields }
-
-    tag = DIGITS
-    value = CHARS excludes delim
-    delim = "\x01"
 
 licence
 -------
