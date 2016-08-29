@@ -18,6 +18,7 @@ Usage
       -v, --version
       -H, --human    Additionally print tag/value names
       -i, --indent   Indent tag entries
+      --no-heartbeats  Omit heartbeat log from output
 
     Help Options:
       -h, --help     Show this help message
@@ -32,7 +33,7 @@ Example Usage
 # read from file with no options
 fixdump sample.log
 
-[2016/08/27 08:41:27.251195]
+[2016/08/27 08:41:27.251195 (2) TW -> ISLD]
 8=FIX.4.2
 9=104
 35=D
@@ -47,7 +48,7 @@ fixdump sample.log
 55=TSLA
 60=00010101-00:00:00.000
 10=039
-[2016/08/27 08:41:39.666251]
+[2016/08/27 08:41:39.666251 (3) ISLD -> TW]
 8=FIX.4.2
 …
 ```
@@ -56,7 +57,7 @@ fixdump sample.log
 # read from STDIN with indent and human options
 tail -f sample.log | fixdump -H -i
 
-[2016/08/27 08:41:27.251195]
+[2016/08/27 08:41:27.251195 (2) TW -> ISLD]
   8(BeginString)=FIX.4.2
   9(BodyLength)=104
   35(MsgType)=D(Order Single)
@@ -71,9 +72,34 @@ tail -f sample.log | fixdump -H -i
   55(Symbol)=TSLA
   60(TransactTime)=00010101-00:00:00.000
   10(CheckSum)=039
-[2016/08/27 08:41:39.666251]
+[2016/08/27 08:41:39.666251 (3) ISLD -> TW]
   8(BeginString)=FIX.4.2
 …
+```
+
+Dump Format
+-----------
+
+__Header Line__
+
+```
+[2016/08/27 08:41:27.251195 (2) TW -> ISLD]
+          │                  │  │       └── TargetCompID
+          │                  │  └── SenderCompID
+          │                  └── MsgSeqNum
+          └─ timestamp
+```
+
+__Field Line__
+
+```
+  35(MsgType)=D(Order Single)
+   │     │    │    └── meaning of the value
+   │     │    └── value
+   │     └── field name
+   └─ tag
+
+
 ```
 
 licence
