@@ -15,9 +15,12 @@ import (
 const (
 	tagBeginString  int = 8
 	tagMsgSeqNum        = 34
+	tagMsgType          = 35
 	tagSendingTime      = 52
 	tagSenderCompID     = 49
 	tagTargetCompID     = 56
+
+	msgTypeHeartBeat string = "0"
 )
 
 var reFields *regexp.Regexp
@@ -121,6 +124,7 @@ type logPrinter interface {
 }
 
 type commonPrinter struct {
+	indent string
 }
 
 func (p commonPrinter) printHeader(parser *lineParser) {
@@ -133,7 +137,6 @@ func (p commonPrinter) printHeader(parser *lineParser) {
 
 type simpleLogPrinter struct {
 	commonPrinter
-	indent string
 }
 
 func (p simpleLogPrinter) print(parser *lineParser) {
@@ -145,7 +148,6 @@ func (p simpleLogPrinter) print(parser *lineParser) {
 
 type humanLogPrinter struct {
 	commonPrinter
-	indent  string
 	fixdict dict.FixDict
 }
 
@@ -181,13 +183,16 @@ func (p *humanLogPrinter) formatTagValue(f *field) string {
 }
 
 type dumper struct {
+	noHeartBeats bool
+
 	parser  *lineParser
 	printer logPrinter
 }
 
 func (app *App) newDumper() dumper {
 	d := dumper{
-		parser: newLineParser(),
+		noHeartBeats: app.opts.NoHeartBeats,
+		parser:       newLineParser(),
 	}
 
 	var indent string
@@ -197,11 +202,15 @@ func (app *App) newDumper() dumper {
 
 	if app.opts.Human {
 		d.printer = &humanLogPrinter{
-			indent: indent,
+			commonPrinter: commonPrinter{
+				indent: indent,
+			},
 		}
 	} else {
 		d.printer = simpleLogPrinter{
-			indent: indent,
+			commonPrinter: commonPrinter{
+				indent: indent,
+			},
 		}
 	}
 
@@ -221,6 +230,11 @@ func (d dumper) dump(reader io.Reader) {
 		}
 
 		if d.parser.parse(line) {
+			if d.noHeartBeats {
+				if d.parser.getFieldValue(tagMsgType, "") == msgTypeHeartBeat {
+					continue
+				}
+			}
 			d.printer.print(d.parser)
 		} else {
 			fmt.Printf(line)
